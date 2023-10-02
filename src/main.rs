@@ -14,15 +14,15 @@ mod yande;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// 发送到的频道ID
-    #[arg(short, long)]
+    #[arg(short, long, env = "CHANNEL_ID")]
     channel_id: String,
 
     /// 机器人API_KEY
-    #[arg(short, long)]
+    #[arg(short, long, env = "API_KEY")]
     api_key: String,
 
     /// 服务器域名
-    #[arg(short, long)]
+    #[arg(short, long, env = "SERVER_DOMAIN")]
     server_domain: String,
 
     /// 服务存储临时文件的目录
