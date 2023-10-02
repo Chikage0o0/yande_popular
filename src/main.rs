@@ -40,7 +40,9 @@ static ARGS: OnceLock<Args> = OnceLock::new();
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
     let tmp_dir = std::path::Path::new(&args().data_dir).join("tmp");
     std::fs::create_dir_all(&tmp_dir).unwrap();
 
@@ -71,66 +73,77 @@ async fn run() {
         .await
         .unwrap();
 
-    let image_list = yande::get_image_list(&resp).unwrap();
-    let download_list = yande::get_download_list(&image_list).unwrap();
+    let mut image_list = yande::get_image_list(&resp).unwrap();
+
+    let resp = yande::get("https://yande.re/post/popular_recent?period=1w")
+        .await
+        .unwrap();
+
+    image_list.extend(yande::get_image_list(&resp).unwrap());
+
+    let download_list = yande::get_download_list(image_list).await.unwrap();
 
     let semaphore = Arc::new(Semaphore::new(args().thread));
     let mut tasks = Vec::new();
-    for (id, url) in download_list {
+    for img_info in download_list {
         let semaphore_clone = Arc::clone(&semaphore);
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore_clone.acquire().await.unwrap();
 
-            let (path, mime) = match yande::download_img((id, url)).await {
-                Ok(path) => path,
-                Err(e) => {
-                    log::error!("download failed: {}", e);
-                    return;
-                }
-            };
+            for (id, url) in img_info.url.iter() {
+                log::info!("prepare download: {}", id);
+                let (path, mime) = match yande::download_img((*id, url)).await {
+                    Ok(path) => path,
+                    Err(e) => {
+                        log::error!("download failed: {}", e);
+                        return;
+                    }
+                };
 
-            let fileinfo = bot::PrepareUpload {
-                content_type: mime,
-                filename: path.file_name().unwrap().to_str().unwrap().to_string(),
-            };
+                let fileinfo = bot::PrepareUpload {
+                    content_type: mime,
+                    filename: path.file_name().unwrap().to_str().unwrap().to_string(),
+                };
 
-            let resp = match bot::prepare_upload(fileinfo).await {
-                Ok(resp) => resp,
-                Err(e) => {
-                    log::error!("prepare_upload failed: {}", e);
-                    return;
-                }
-            };
+                let resp = match bot::prepare_upload(fileinfo).await {
+                    Ok(resp) => resp,
+                    Err(e) => {
+                        log::error!("prepare_upload failed: {}", e);
+                        return;
+                    }
+                };
 
-            let file_id = resp;
+                let file_id = resp;
 
-            let upload_path = match bot::upload(&path, &file_id).await {
-                Ok(resp) => resp.path,
-                Err(e) => {
-                    log::error!("upload failed: {}", e);
+                log::info!("upload: {}", id);
+                let upload_path = match bot::upload(&path, &file_id).await {
+                    Ok(resp) => resp.path,
+                    Err(e) => {
+                        log::error!("upload failed: {}", e);
 
-                    return;
-                }
-            };
+                        return;
+                    }
+                };
 
-            let mut headers = header::HeaderMap::new();
-            headers.insert(
-                header::CONTENT_TYPE,
-                header::HeaderValue::from_static("vocechat/file"),
-            );
-            let channel_id = &args().channel_id;
-            let payload = serde_json::json!({
-                "path":upload_path,
-            });
-            let msg = serde_json::to_string(&payload).unwrap();
-            match bot::send_msg(channel_id, &msg, headers).await {
-                Ok(_) => {
-                    std::fs::remove_file(&path).unwrap();
-                }
-                Err(e) => {
-                    log::error!("send_msg failed: {}", e);
-                }
-            };
+                let mut headers = header::HeaderMap::new();
+                headers.insert(
+                    header::CONTENT_TYPE,
+                    header::HeaderValue::from_static("vocechat/file"),
+                );
+                let channel_id = &args().channel_id;
+                let payload = serde_json::json!({
+                    "path":upload_path,
+                });
+                let msg = serde_json::to_string(&payload).unwrap();
+                match bot::send_msg(channel_id, &msg, headers).await {
+                    Ok(_) => {
+                        std::fs::remove_file(&path).unwrap();
+                    }
+                    Err(e) => {
+                        log::error!("send_msg failed: {}", e);
+                    }
+                };
+            }
         }));
     }
 
