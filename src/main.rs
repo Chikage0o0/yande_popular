@@ -27,12 +27,12 @@ struct Args {
 
     /// 服务存储临时文件的目录
     /// 默认为data
-    #[arg(short, long, default_value = "data")]
+    #[arg(short, long, default_value = "data", env = "DATA_DIR")]
     data_dir: String,
 
     /// 并发线程数
     /// 默认为4
-    #[arg(short, long, default_value = "4")]
+    #[arg(short, long, default_value = "1")]
     thread: usize,
 }
 

@@ -17,5 +17,5 @@ COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/yande_popular 
                     /usr/local/bin/yande_popular
 USER nonroot:nonroot
 VOLUME ["/data"]
-
-ENTRYPOINT ["/usr/local/bin/yande_popular","--data_dir","/data"]
+ENV DATA_DIR=/data
+ENTRYPOINT ["/usr/local/bin/yande_popular"]
