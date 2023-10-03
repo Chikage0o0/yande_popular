@@ -6,5 +6,5 @@
 ## 使用
 #### Docker
 ```
-docker run -d --name yande_popular -e API_KEY="xxxxxxxxxxxxxxxxx" -e SERVER_DOMAIN="http://voce.chat" -e CHANNEL_ID="1" --restart unless-stopped chikage/yande_popular:latest
+docker run -d --name yande_popular -e API_KEY="xxxxxxxxxxxxxxxxx" -e SERVER_DOMAIN="http://voce.chat" -e CHANNEL_ID="1" -v ~/yande_popular:/yande_popular --restart unless-stopped chikage/yande_popular:latest
 ```

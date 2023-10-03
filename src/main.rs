@@ -85,12 +85,12 @@ async fn run() {
 
     let semaphore = Arc::new(Semaphore::new(args().thread));
     let mut tasks = Vec::new();
-    for img_info in download_list {
+    for (_, img_data) in download_list {
         let semaphore_clone = Arc::clone(&semaphore);
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore_clone.acquire().await.unwrap();
 
-            for (id, url) in img_info.url.iter() {
+            for (id, url) in img_data.url.iter() {
                 log::info!("prepare download: {}", id);
                 let (path, mime) = match yande::download_img((*id, url)).await {
                     Ok(path) => path,

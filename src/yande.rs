@@ -1,4 +1,9 @@
-use std::{collections::VecDeque, io::Write, path::PathBuf, sync::OnceLock};
+use std::{
+    collections::{HashMap, VecDeque},
+    io::Write,
+    path::PathBuf,
+    sync::OnceLock,
+};
 
 use crate::{args, db::DB};
 use anyhow::{Ok, Result};
@@ -11,9 +16,9 @@ use select::{
 pub static CLIENT: OnceLock<Client> = OnceLock::new();
 pub static DB_HANDLE: OnceLock<DB> = OnceLock::new();
 
+type ImgInfo = HashMap<i64, ImgData>;
 #[derive(Debug, Clone)]
-pub struct ImgInfo {
-    pub id: i64,
+pub struct ImgData {
     pub score: u64,
     pub url: VecDeque<(i64, String)>,
 }
@@ -92,7 +97,7 @@ async fn find_parent(id: i64) -> Result<(i64, Document)> {
     Ok(result)
 }
 
-pub async fn get_image_info(id: i64) -> Result<ImgInfo> {
+pub async fn get_image_info(id: i64) -> Result<(i64, ImgData)> {
     let (id, document) = find_parent(id).await?;
 
     let mut download_link: VecDeque<(i64, String)> = VecDeque::new();
@@ -127,11 +132,13 @@ pub async fn get_image_info(id: i64) -> Result<ImgInfo> {
         }
     }
 
-    Ok(ImgInfo {
+    Ok((
         id,
-        score,
-        url: download_link,
-    })
+        ImgData {
+            score,
+            url: download_link,
+        },
+    ))
 }
 
 fn find_score(id: i64, document: &Document) -> Result<u64> {
@@ -155,8 +162,8 @@ fn find_raw_url(document: &Document) -> Result<String> {
     Ok(url.to_string())
 }
 
-pub async fn get_download_list(image_list: Vec<i64>) -> Result<Vec<ImgInfo>> {
-    let mut download_list = Vec::new();
+pub async fn get_download_list(image_list: Vec<i64>) -> Result<ImgInfo> {
+    let mut download_list = HashMap::new();
 
     for img_id in image_list {
         if DB_HANDLE
@@ -166,17 +173,13 @@ pub async fn get_download_list(image_list: Vec<i64>) -> Result<Vec<ImgInfo>> {
             continue;
         }
 
-        let img_info = get_image_info(img_id).await?;
-        if img_info.score < 50
-            || DB_HANDLE
-                .get_or_init(DB::init)
-                .contains(&img_info.id.to_string())?
-        {
+        let (id, img_data) = get_image_info(img_id).await?;
+        if img_data.score < 50 || DB_HANDLE.get_or_init(DB::init).contains(&id.to_string())? {
             continue;
         }
 
-        download_list.push(img_info.clone());
-        for (id, _) in img_info.url.iter() {
+        download_list.insert(id, img_data.clone());
+        for (id, _) in img_data.url.iter() {
             DB_HANDLE.get_or_init(DB::init).insert(&id.to_string())?;
         }
     }
@@ -228,6 +231,6 @@ mod tests {
     async fn test_get_image_info() {
         let image_info = get_image_info(1124159).await.unwrap();
         println!("{:#?}", image_info);
-        assert!(!image_info.url.is_empty());
+        assert!(!image_info.1.url.is_empty());
     }
 }
