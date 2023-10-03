@@ -66,7 +66,7 @@ async fn find_parent(id: i64) -> Result<(i64, Document)> {
 
     let result = match document.find(Class("status-notice")).find(|node| {
         node.children()
-            .any(|node| node.is(Name("a")) && (&node.text() == "parent post"))
+            .any(|node| node.is(Name("a")) && node.text().contains("parent post"))
     }) {
         Some(node) => {
             let id = node
@@ -103,7 +103,7 @@ pub async fn get_image_info(id: i64) -> Result<ImgInfo> {
 
     let child = document.find(Class("status-notice")).find(|node| {
         node.children()
-            .any(|node| node.is(Name("a")) && (&node.text() == "a child post"))
+            .any(|node| node.is(Name("a")) && node.text().contains("child post"))
     });
 
     if let Some(node) = child {
