@@ -1,6 +1,5 @@
 use std::sync::{Arc, OnceLock};
 
-use reqwest::header;
 use tokio::sync::Semaphore;
 
 use clap::Parser;
@@ -10,6 +9,7 @@ mod bot;
 mod db;
 mod yande;
 
+#[cfg(feature = "voce")]
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -24,6 +24,37 @@ struct Args {
     /// 服务器域名
     #[arg(short, long, env = "SERVER_DOMAIN")]
     server_domain: String,
+
+    /// 服务存储临时文件的目录
+    /// 默认为data
+    #[arg(short, long, default_value = "data", env = "DATA_DIR")]
+    data_dir: String,
+
+    /// 并发线程数
+    /// 默认为4
+    #[arg(short, long, default_value = "1")]
+    thread: usize,
+}
+
+#[cfg(feature = "matrix")]
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Home Server URL
+    #[arg(long, env = "HOME_SERVER_URL")]
+    home_server_url: String,
+
+    /// 发送到的房间ID
+    #[arg(long, env = "ROOM_ID")]
+    room_id: String,
+
+    /// 机器人用户名
+    #[arg(short, long, env = "USER")]
+    user: String,
+
+    /// 机器人密码
+    #[arg(short, long, env = "PASSWORD")]
+    password: String,
 
     /// 服务存储临时文件的目录
     /// 默认为data
@@ -92,57 +123,17 @@ async fn run() {
 
             for (id, url) in img_data.url.iter() {
                 log::info!("prepare download: {}", id);
-                let (path, mime) = match yande::download_img((*id, url)).await {
+                let path = match yande::download_img((*id, url)).await {
                     Ok(path) => path,
                     Err(e) => {
                         log::error!("download failed: {}", e);
                         return;
                     }
                 };
-
-                let fileinfo = bot::PrepareUpload {
-                    content_type: mime,
-                    filename: path.file_name().unwrap().to_str().unwrap().to_string(),
-                };
-
-                let resp = match bot::prepare_upload(fileinfo).await {
-                    Ok(resp) => resp,
-                    Err(e) => {
-                        log::error!("prepare_upload failed: {}", e);
-                        return;
-                    }
-                };
-
-                let file_id = resp;
-
                 log::info!("upload: {}", id);
-                let upload_path = match bot::upload(&path, &file_id).await {
-                    Ok(resp) => resp.path,
-                    Err(e) => {
-                        log::error!("upload failed: {}", e);
-
-                        return;
-                    }
-                };
-
-                let mut headers = header::HeaderMap::new();
-                headers.insert(
-                    header::CONTENT_TYPE,
-                    header::HeaderValue::from_static("vocechat/file"),
-                );
-                let channel_id = &args().channel_id;
-                let payload = serde_json::json!({
-                    "path":upload_path,
-                });
-                let msg = serde_json::to_string(&payload).unwrap();
-                match bot::send_msg(channel_id, &msg, headers).await {
-                    Ok(_) => {
-                        std::fs::remove_file(&path).unwrap();
-                    }
-                    Err(e) => {
-                        log::error!("send_msg failed: {}", e);
-                    }
-                };
+                bot::send_attachment(&path)
+                    .await
+                    .unwrap_or_else(|e| log::error!("send attachment failed: {}", e));
             }
         }));
     }

@@ -71,7 +71,7 @@ fn client_builder() -> Client {
         .unwrap()
 }
 
-pub async fn prepare_upload(fileinfo: PrepareUpload) -> Result<String> {
+async fn prepare_upload(fileinfo: PrepareUpload) -> Result<String> {
     let url = format!("{}/api/bot/file/prepare", &args().server_domain);
     let client = CLIENT.get_or_init(client_builder);
     let resp = client
@@ -86,7 +86,7 @@ pub async fn prepare_upload(fileinfo: PrepareUpload) -> Result<String> {
     Ok(resp)
 }
 
-pub async fn upload(file_path: &Path, file_id: &str) -> Result<UploadResponse> {
+async fn upload(file_path: &Path, file_id: &str) -> Result<UploadResponse> {
     let url = format!("{}/api/bot/file/upload", &args().server_domain);
 
     let client = CLIENT.get_or_init(client_builder);
@@ -132,7 +132,7 @@ pub async fn upload(file_path: &Path, file_id: &str) -> Result<UploadResponse> {
     Err(anyhow::anyhow!("upload failed"))
 }
 
-pub async fn send_msg(channel_id: &str, msg: &str, header: HeaderMap) -> Result<()> {
+async fn send_msg(channel_id: &str, msg: &str, header: HeaderMap) -> Result<()> {
     let url = format!(
         "{}/api/bot/send_to_group/{}",
         &args().server_domain,
@@ -147,5 +147,31 @@ pub async fn send_msg(channel_id: &str, msg: &str, header: HeaderMap) -> Result<
         .build()?;
     client.execute(resp).await?.error_for_status()?;
 
+    Ok(())
+}
+
+pub async fn send_attachment(file_path: &Path) -> Result<()> {
+    let mime = mime_guess::from_path(file_path)
+        .first_or_octet_stream()
+        .to_string();
+    let fileinfo = PrepareUpload {
+        content_type: mime,
+        filename: file_path.file_name().unwrap().to_str().unwrap().to_string(),
+    };
+    let file_id = prepare_upload(fileinfo).await?;
+    let upload_path = upload(file_path, &file_id).await?.path;
+
+    let mut headers = header::HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("vocechat/file"),
+    );
+    let channel_id = &args().channel_id;
+    let payload = serde_json::json!({
+        "path":upload_path,
+    });
+    let msg = serde_json::to_string(&payload).unwrap();
+    send_msg(channel_id, &msg, headers).await?;
+    std::fs::remove_file(file_path)?;
     Ok(())
 }

@@ -7,7 +7,7 @@ RUN apk add --no-cache --virtual .build-deps \
         openssl-dev \
         perl \
         pkgconfig \
-    && cargo build --release
+    && cargo build --release --no-default-features --features voce
 
 FROM alpine:3.18
 LABEL maintainer="Chikage <chikage@939.me>" \

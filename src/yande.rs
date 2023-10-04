@@ -187,16 +187,11 @@ pub async fn get_download_list(image_list: Vec<i64>) -> Result<ImgInfo> {
     Ok(download_list)
 }
 
-pub async fn download_img((id, url): (i64, &str)) -> Result<(PathBuf, String)> {
+pub async fn download_img((id, url): (i64, &str)) -> Result<PathBuf> {
     let client = CLIENT.get_or_init(client_builder);
 
     let resp = client.get(url).send().await?;
-    let mime = resp
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .ok_or(anyhow::anyhow!("not found content-type"))?
-        .to_str()?
-        .to_string();
+
     let ext = url.split('.').last().unwrap();
     let bytes = resp.bytes().await?;
 
@@ -205,7 +200,7 @@ pub async fn download_img((id, url): (i64, &str)) -> Result<(PathBuf, String)> {
     let mut file = std::fs::File::create(&path)?;
     file.write_all(&bytes)?;
 
-    Ok((path, mime))
+    Ok(path)
 }
 
 #[cfg(test)]

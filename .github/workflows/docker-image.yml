@@ -6,7 +6,11 @@ on:
       - 'master'
 
 jobs:
-  docker:
+  build_matrix:
+    strategy:
+      matrix:
+        feature: [voce, matrix]
+        arch: [amd64, arm64]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,5 +29,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: chikage/yande_popular:latest
+          file: ./Dockerfile.${{ matrix.feature }}
+          platforms: linux/${{ matrix.arch }}
+          tags: chikage/yande_popular:${{ matrix.feature }}
