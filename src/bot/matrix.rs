@@ -1,7 +1,10 @@
 use std::{fs, path::Path, sync::OnceLock};
 
 use anyhow::Result;
-use matrix_sdk::{self, attachment::AttachmentConfig, config::SyncSettings, room::Joined, Client};
+use matrix_sdk::{
+    self, attachment::AttachmentConfig, config::SyncSettings, room::Joined,
+    ruma::events::room::message::RoomMessageEventContent, Client,
+};
 
 use tokio::runtime::Runtime;
 use url::Url;
@@ -15,9 +18,33 @@ async fn upload(file_path: &Path) -> Result<()> {
     let filename = file_path.file_name().unwrap().to_str().unwrap();
     let mime = mime_guess::from_path(file_path).first_or_octet_stream();
 
+    // get image width and height
+    let size = match image::image_dimensions(file_path) {
+        Ok(size) => {
+            let (width, height) = size;
+            // scale image
+            let scale = 1200.0 / width.max(height) as f32;
+            let width = (width as f32 * scale) as u32;
+            let height = (height as f32 * scale) as u32;
+            Some((width, height))
+        }
+        Err(_) => None,
+    };
+
     ROOM.get_or_init(init)
-        .send_attachment(filename, &mime, &image, AttachmentConfig::new())
+        .send_attachment(
+            filename,
+            &mime,
+            &image,
+            AttachmentConfig::new().generate_thumbnail(size),
+        )
         .await?;
+    Ok(())
+}
+
+pub async fn send_msg(msg: &str) -> Result<()> {
+    let msg = RoomMessageEventContent::text_markdown(msg);
+    ROOM.get_or_init(init).send(msg, None).await?;
     Ok(())
 }
 

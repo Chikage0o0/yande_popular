@@ -116,11 +116,14 @@ async fn run() {
 
     let semaphore = Arc::new(Semaphore::new(args().thread));
     let mut tasks = Vec::new();
-    for (_, img_data) in download_list {
+    for (id, img_data) in download_list {
         let semaphore_clone = Arc::clone(&semaphore);
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore_clone.acquire().await.unwrap();
-
+            let msg = format!("ID：[{id}](https://yande.re/post/show/{id})");
+            bot::send_msg(&msg)
+                .await
+                .unwrap_or_else(|e| log::error!("send msg failed: {}", e));
             for (id, url) in img_data.url.iter() {
                 log::info!("prepare download: {}", id);
                 let path = match yande::download_img((*id, url)).await {
@@ -131,6 +134,7 @@ async fn run() {
                     }
                 };
                 log::info!("upload: {}", id);
+
                 bot::send_attachment(&path)
                     .await
                     .unwrap_or_else(|e| log::error!("send attachment failed: {}", e));

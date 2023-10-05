@@ -132,13 +132,44 @@ async fn upload(file_path: &Path, file_id: &str) -> Result<UploadResponse> {
     Err(anyhow::anyhow!("upload failed"))
 }
 
-async fn send_msg(channel_id: &str, msg: &str, header: HeaderMap) -> Result<()> {
+async fn send_file_msg(channel_id: &str, msg: &str) -> Result<()> {
     let url = format!(
         "{}/api/bot/send_to_group/{}",
         &args().server_domain,
         channel_id
     );
     let client = CLIENT.get_or_init(client_builder);
+
+    let mut header = HeaderMap::new();
+    header.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("vocechat/file"),
+    );
+
+    let resp = client
+        .request(Method::POST, &url)
+        .body(msg.to_string())
+        .headers(header)
+        .build()?;
+    client.execute(resp).await?.error_for_status()?;
+
+    Ok(())
+}
+
+pub async fn send_msg(msg: &str) -> Result<()> {
+    let channel_id = &args().channel_id;
+    let url = format!(
+        "{}/api/bot/send_to_group/{}",
+        &args().server_domain,
+        channel_id
+    );
+    let client = CLIENT.get_or_init(client_builder);
+
+    let mut header = HeaderMap::new();
+    header.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("text/markdown"),
+    );
 
     let resp = client
         .request(Method::POST, &url)
@@ -161,17 +192,12 @@ pub async fn send_attachment(file_path: &Path) -> Result<()> {
     let file_id = prepare_upload(fileinfo).await?;
     let upload_path = upload(file_path, &file_id).await?.path;
 
-    let mut headers = header::HeaderMap::new();
-    headers.insert(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("vocechat/file"),
-    );
     let channel_id = &args().channel_id;
     let payload = serde_json::json!({
         "path":upload_path,
     });
     let msg = serde_json::to_string(&payload).unwrap();
-    send_msg(channel_id, &msg, headers).await?;
+    send_file_msg(channel_id, &msg).await?;
     std::fs::remove_file(file_path)?;
     Ok(())
 }

@@ -4,6 +4,7 @@ mod matrix;
 mod voce;
 
 #[cfg(feature = "matrix")]
-pub use matrix::send_attachment;
+pub use matrix::*;
+
 #[cfg(feature = "voce")]
-pub use voce::send_attachment;
+pub use voce::*;

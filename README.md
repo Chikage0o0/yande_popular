@@ -11,5 +11,5 @@ docker run -d --name yande_popular -e API_KEY="xxxxxxxxxxxxxxxxx" -e SERVER_DOMA
 ```
 For Matrix
 ```
-docker run -d --name yande_popular -e HOME_SERVER_URL = "https://xxx.xxx" -e ROOM_ID = "!PWPurdafsdfasd:xx.xxx" -e USER = "x" -e PASSWORD = "x" -v ./yande_popular:/yande_popular --restart unless-stopped chikage/yande_popular:matrix
+docker run -d --name yande_popular -e HOME_SERVER_URL="https://xxx.xxx" -e ROOM_ID='!PWPurdafsdfasd:xx.xxx' -e USER="x" -e PASSWORD="x" -v yande_popular:/yande_popular --restart unless-stopped chikage/yande_popular:matrix
 ```
