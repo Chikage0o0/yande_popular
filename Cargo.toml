@@ -32,7 +32,6 @@ clap = { version = "4.4.6", features = ["derive", "env"] }
 matrix-sdk = { version = "0.6.2", optional = true }
 mime_guess = { version = "2.0.4" }
 url = { version = "2.4.1", optional = true }
-openssl = { version = "0.10.57", features = ["vendored"] }
 
 [features]
 default = ["matrix"]
