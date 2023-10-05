@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{args, db::DB};
-use anyhow::{Ok, Result};
+use anyhow::Result;
 use reqwest::{header, Client, ClientBuilder};
 use select::{
     document::{self, Document},
@@ -170,11 +170,20 @@ pub async fn get_download_list(image_list: Vec<i64>) -> Result<ImgInfo> {
             .get_or_init(DB::init)
             .contains(&img_id.to_string())?
         {
+            log::debug!("{} is exists,skip", img_id);
             continue;
         }
 
-        let (id, img_data) = get_image_info(img_id).await?;
+        let (id, img_data) = match get_image_info(img_id).await {
+            Ok(img_data) => img_data,
+            Err(e) => {
+                log::error!("get image info failed: {}", e);
+                continue;
+            }
+        };
+        log::debug!("get image info: {}", img_id);
         if img_data.score < 50 || DB_HANDLE.get_or_init(DB::init).contains(&id.to_string())? {
+            log::debug!("{} score ,skip", img_id);
             continue;
         }
 
@@ -192,7 +201,7 @@ pub async fn download_img((id, url): (i64, &str)) -> Result<PathBuf> {
 
     let resp = client.get(url).send().await?;
 
-    let ext = url.split('.').last().unwrap();
+    let ext = url.split('.').last().unwrap_or("jpg");
     let bytes = resp.bytes().await?;
 
     let path = PathBuf::from(format!("{}/tmp/{}.{}", &args().data_dir, id, ext));

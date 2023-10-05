@@ -1,5 +1,5 @@
 #[cfg(feature = "matrix")]
-mod matrix;
+pub mod matrix;
 #[cfg(feature = "voce")]
 mod voce;
 

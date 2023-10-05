@@ -11,11 +11,15 @@ use url::Url;
 
 use crate::args;
 
-static ROOM: OnceLock<Joined> = OnceLock::new();
+pub static ROOM: OnceLock<Joined> = OnceLock::new();
 
 async fn upload(file_path: &Path) -> Result<()> {
-    let image = fs::read(file_path).expect("Can't read image");
-    let filename = file_path.file_name().unwrap().to_str().unwrap();
+    let image = fs::read(file_path)?;
+    let filename = file_path
+        .file_name()
+        .unwrap_or(std::ffi::OsStr::new("image.jpg"))
+        .to_str()
+        .unwrap_or("image.jpg");
     let mime = mime_guess::from_path(file_path).first_or_octet_stream();
 
     ROOM.get_or_init(init)
@@ -54,7 +58,7 @@ async fn login(
     Ok(room)
 }
 
-fn init() -> Joined {
+pub fn init() -> Joined {
     std::thread::spawn(|| {
         let rt = Runtime::new().unwrap();
         rt.block_on(async move {

@@ -1,5 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
+use anyhow::Result;
 use tokio::sync::Semaphore;
 
 use clap::Parser;
@@ -75,6 +76,16 @@ async fn main() {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
+    log::info!("start yande.rs bot");
+    log::info!("args: {:?}", args());
+
+    #[cfg(feature = "matrix")]
+    {
+        log::info!("test login");
+        bot::matrix::ROOM.get_or_init(bot::matrix::init);
+        log::info!("login success");
+    }
+
     let tmp_dir = std::path::Path::new(&args().data_dir).join("tmp");
     std::fs::create_dir_all(&tmp_dir).unwrap();
 
@@ -89,8 +100,10 @@ async fn main() {
                 break;
             }
             _ = interval.tick() => {
-                run().await;
+                log::info!("start scan");
+                run().await.unwrap_or_else(|e| log::error!("run failed: {}", e));
                 DB_HANDLE.get_or_init(db::DB::init).auto_remove().unwrap();
+                log::info!("scan finished, sleep 1 hour");
             }
         }
     }
@@ -100,20 +113,17 @@ pub(crate) fn args() -> &'static Args {
     ARGS.get_or_init(Args::parse)
 }
 
-async fn run() {
-    let resp = yande::get("https://yande.re/post/popular_recent")
-        .await
-        .unwrap();
+async fn run() -> Result<()> {
+    let resp = yande::get("https://yande.re/post/popular_recent").await?;
 
-    let mut image_list = yande::get_image_list(&resp).unwrap();
+    let mut image_list = yande::get_image_list(&resp)?;
 
     let resp = yande::get("https://yande.re/post/popular_recent?period=1w")
         .await
-        .unwrap();
+        .unwrap_or_default();
 
-    image_list.extend(yande::get_image_list(&resp).unwrap());
-
-    let download_list = yande::get_download_list(image_list).await.unwrap();
+    image_list.extend(yande::get_image_list(&resp).unwrap_or_default());
+    let download_list = yande::get_download_list(image_list).await?;
 
     let semaphore = Arc::new(Semaphore::new(args().thread));
     let mut tasks = Vec::new();
@@ -132,7 +142,7 @@ async fn run() {
                     Ok(path) => path,
                     Err(e) => {
                         log::error!("download failed: {}", e);
-                        return;
+                        continue;
                     }
                 };
 
@@ -153,6 +163,7 @@ async fn run() {
     }
 
     for task in tasks {
-        task.await.unwrap();
+        task.await?;
     }
+    Ok(())
 }
