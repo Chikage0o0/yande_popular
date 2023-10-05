@@ -36,12 +36,13 @@ matrix-sdk = { version = "0.6.2", features = [
 ], optional = true }
 mime_guess = { version = "2.0.4" }
 url = { version = "2.4.1", optional = true }
-image = { version = "0.24.7", optional = true }
+image = { version = "0.24.7" }
+webp = { version = "0.2.6" }
 
 [features]
 default = ["matrix"]
 voce = []
-matrix = ["matrix-sdk", "url", "image"]
+matrix = ["matrix-sdk", "url"]
 
 
 [profile.release]

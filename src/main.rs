@@ -7,6 +7,7 @@ use yande::DB_HANDLE;
 
 mod bot;
 mod db;
+mod resize;
 mod yande;
 
 #[cfg(feature = "voce")]
@@ -120,7 +121,8 @@ async fn run() {
         let semaphore_clone = Arc::clone(&semaphore);
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore_clone.acquire().await.unwrap();
-            let msg = format!("ID：[{id}](https://yande.re/post/show/{id})");
+            let msg =
+                format!("来源：[https://yande.re/post/show/{id}](https://yande.re/post/show/{id})");
             bot::send_msg(&msg)
                 .await
                 .unwrap_or_else(|e| log::error!("send msg failed: {}", e));
@@ -131,6 +133,14 @@ async fn run() {
                     Err(e) => {
                         log::error!("download failed: {}", e);
                         return;
+                    }
+                };
+
+                let path = match resize::resize_and_compress(&path) {
+                    Ok(path) => path,
+                    Err(e) => {
+                        log::error!("resize {id} failed: {}", e);
+                        continue;
                     }
                 };
                 log::info!("upload: {}", id);
