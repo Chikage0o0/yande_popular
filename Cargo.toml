@@ -29,15 +29,11 @@ once_cell = "1.8.0"
 
 clap = { version = "4.4.6", features = ["derive", "env"] }
 
-matrix-sdk = { version = "0.6.2", features = [
-    "markdown",
-    "image-proc",
-    "image-rayon",
-], optional = true }
+matrix-sdk = { version = "0.6.2", features = ["markdown"], optional = true }
 mime_guess = { version = "2.0.4" }
 url = { version = "2.4.1", optional = true }
-image = { version = "0.24.7" }
-webp = { version = "0.2.6" }
+image_compressor = { git = "https://github.com/Chikage0o0/image_compressor/", branch = "main" }
+
 
 [features]
 default = ["matrix"]
