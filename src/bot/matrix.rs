@@ -1,11 +1,13 @@
 use std::{fs, path::Path, sync::OnceLock};
 
 use anyhow::Result;
+use image::GenericImageView;
 use matrix_sdk::{
     self, attachment::AttachmentConfig, config::SyncSettings, room::Joined,
     ruma::events::room::message::RoomMessageEventContent, Client,
 };
 
+use mime_guess::mime;
 use tokio::runtime::Runtime;
 use url::Url;
 
@@ -14,7 +16,7 @@ use crate::args;
 pub static ROOM: OnceLock<Joined> = OnceLock::new();
 
 async fn upload(file_path: &Path) -> Result<()> {
-    let image = fs::read(file_path)?;
+    let file = fs::read(file_path)?;
     let filename = file_path
         .file_name()
         .unwrap_or(std::ffi::OsStr::new("image.jpg"))
@@ -22,8 +24,27 @@ async fn upload(file_path: &Path) -> Result<()> {
         .unwrap_or("image.jpg");
     let mime = mime_guess::from_path(file_path).first_or_octet_stream();
 
+    let config = match mime.type_() {
+        mime::IMAGE => {
+            // 从文件Bytes获取图片信息
+            let image = image::load_from_memory(&file)?;
+            let (width, height) = image.dimensions();
+            let blurhash = blurhash::encode(4, 3, width, height, image.to_rgba8().as_raw())?;
+
+            let info = matrix_sdk::attachment::BaseImageInfo {
+                height: Some(height.try_into()?),
+                width: Some(width.try_into()?),
+                size: Some(file.len().try_into()?),
+                blurhash: Some(blurhash),
+            };
+
+            AttachmentConfig::new().info(matrix_sdk::attachment::AttachmentInfo::Image(info))
+        }
+        _ => AttachmentConfig::default(),
+    };
+
     ROOM.get_or_init(init)
-        .send_attachment(filename, &mime, &image, AttachmentConfig::new())
+        .send_attachment(filename, &mime, &file, config)
         .await?;
     Ok(())
 }

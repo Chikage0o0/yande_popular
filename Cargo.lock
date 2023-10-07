@@ -320,6 +320,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "blurhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa5ddff25bcae3e2ac5a93506cc050c730163fd92d319556861375b225164dde"
+
+[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3395,8 +3401,10 @@ name = "yande_popular"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blurhash",
  "clap",
  "env_logger",
+ "image",
  "image_compressor",
  "log",
  "matrix-sdk",
