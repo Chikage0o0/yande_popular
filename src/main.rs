@@ -1,4 +1,7 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, OnceLock,
+};
 
 use anyhow::Result;
 use tokio::sync::Semaphore;
@@ -64,12 +67,13 @@ struct Args {
     data_dir: String,
 
     /// 并发线程数
-    /// 默认为4
+    /// 默认为1
     #[arg(short, long, default_value = "1")]
     thread: usize,
 }
 
 static ARGS: OnceLock<Args> = OnceLock::new();
+static STOP_SIGNAL: AtomicBool = AtomicBool::new(false);
 
 #[tokio::main]
 async fn main() {
@@ -93,11 +97,11 @@ async fn main() {
     let interval = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
     tokio::pin!(ctrlc);
     tokio::pin!(interval);
-    loop {
+    while !STOP_SIGNAL.load(Ordering::Relaxed) {
         tokio::select! {
             _ = &mut ctrlc => {
                 log::info!("Ctrl-C received, exiting...");
-                break;
+                STOP_SIGNAL.store(true, Ordering::Relaxed);
             }
             _ = interval.tick() => {
                 log::info!("start scan");
@@ -128,6 +132,9 @@ async fn run() -> Result<()> {
     let semaphore = Arc::new(Semaphore::new(args().thread));
     let mut tasks = Vec::new();
     for (id, img_data) in download_list {
+        if STOP_SIGNAL.load(Ordering::Relaxed) {
+            break;
+        }
         let semaphore_clone = Arc::clone(&semaphore);
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore_clone.acquire().await.unwrap();
