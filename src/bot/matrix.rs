@@ -63,12 +63,14 @@ async fn login(
 ) -> Result<Joined> {
     let homeserver_url = Url::parse(homeserver_url).expect("Couldn't parse the homeserver URL");
     let client = Client::new(homeserver_url).await.unwrap();
+    let session_file = std::path::PathBuf::from(&args().data_dir).join("session");
 
-    client
-        .login_username(username, password)
-        .initial_device_display_name("rust-sdk")
-        .send()
-        .await?;
+    if session_file.exists() && restore_login(&client, &session_file).await.is_ok() {
+        log::info!("Restored login from session file");
+    } else {
+        login_username(&client, &session_file, username, password).await?;
+        log::info!("Logged in as {}", username);
+    }
 
     client.sync_once(SyncSettings::new()).await?;
 
@@ -77,6 +79,32 @@ async fn login(
         .ok_or(anyhow::Error::msg("No room with that alias exists"))?;
 
     Ok(room)
+}
+
+async fn restore_login(client: &Client, session_file: impl AsRef<Path>) -> Result<()> {
+    let session = fs::read_to_string(session_file)?;
+    let session = serde_json::from_str(&session)?;
+    client.restore_login(session).await?;
+    Ok(())
+}
+
+async fn login_username(
+    client: &Client,
+    session_file: impl AsRef<Path>,
+    username: &str,
+    password: &str,
+) -> Result<()> {
+    client
+        .login_username(username, password)
+        .initial_device_display_name("yande_popular_bot")
+        .send()
+        .await?;
+    let session = client.session();
+    if let Some(session) = session {
+        let session = serde_json::to_string(&session)?;
+        fs::write(session_file, session)?;
+    };
+    Ok(())
 }
 
 pub fn init() -> Joined {

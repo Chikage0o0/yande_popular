@@ -1,7 +1,7 @@
-use std::sync::{
+use std::{sync::{
     atomic::{AtomicBool, Ordering},
     Arc, OnceLock,
-};
+}, fs::create_dir_all};
 
 use anyhow::Result;
 use tokio::sync::Semaphore;
@@ -61,7 +61,7 @@ struct Args {
     #[arg(short, long, env = "PASSWORD")]
     password: String,
 
-    /// 服务存储临时文件的目录
+    /// 服务存储文件的目录
     /// 默认为data
     #[arg(short, long, default_value = "data", env = "DATA_DIR")]
     data_dir: String,
@@ -83,6 +83,8 @@ async fn main() {
     log::info!("start yande.rs bot");
     log::info!("args: {:?}", args());
 
+    create_dir_all(&args().data_dir).unwrap();
+    
     #[cfg(feature = "matrix")]
     {
         log::info!("test login");
@@ -91,7 +93,7 @@ async fn main() {
     }
 
     let tmp_dir = std::path::Path::new(&args().data_dir).join("tmp");
-    std::fs::create_dir_all(&tmp_dir).unwrap();
+    create_dir_all(&tmp_dir).unwrap();
 
     let ctrlc = tokio::signal::ctrl_c();
     let interval = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
