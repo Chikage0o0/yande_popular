@@ -1,7 +1,10 @@
-use std::{sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, OnceLock,
-}, fs::create_dir_all};
+use std::{
+    fs::create_dir_all,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, OnceLock,
+    },
+};
 
 use anyhow::Result;
 use tokio::sync::Semaphore;
@@ -84,11 +87,14 @@ async fn main() {
     log::info!("args: {:?}", args());
 
     create_dir_all(&args().data_dir).unwrap();
-    
+
     #[cfg(feature = "matrix")]
     {
         log::info!("test login");
-        bot::matrix::ROOM.get_or_init(bot::matrix::init);
+        bot::matrix::ROOM.get_or_init(bot::matrix::room_init);
+        tokio::spawn(bot::matrix::e2ee::sync(
+            bot::matrix::CLIENT.get().unwrap().clone(),
+        ));
         log::info!("login success");
     }
 

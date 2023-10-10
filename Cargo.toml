@@ -1,50 +1,51 @@
 [package]
+authors = ["Chikage <chikage@939.me>"]
+edition = "2021"
 name = "yande_popular"
 version = "0.1.0"
-edition = "2021"
-authors = ["Chikage <chikage@939.me>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11", default-features = false, features = [
-    "json",
-    "multipart",
-] }
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.0", features = [
-    "rt-multi-thread",
-    "macros",
-    "signal",
-    "fs",
-] }
 anyhow = "1.0"
-select = "0.6.0"
-log = "0.4.14"
 env_logger = "0.10.0"
-sled = { version = "0.34.7" }
+log = "0.4.14"
+reqwest = {version = "0.11", default-features = false, features = [
+  "json",
+  "multipart",
+]}
+select = "0.6.0"
+serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0.107"
+sled = {version = "0.34.7"}
+tokio = {version = "1.0", features = [
+  "rt-multi-thread",
+  "macros",
+  "signal",
+  "fs",
+]}
 
 once_cell = "1.8.0"
 
-clap = { version = "4.4.6", features = ["derive", "env"] }
+clap = {version = "4.4.6", features = ["derive", "env"]}
 
-matrix-sdk = { version = "0.6.2", features = ["markdown"], optional = true }
-mime_guess = { version = "2.0.4" }
-url = { version = "2.4.1", optional = true }
-image_compressor = { git = "https://github.com/Chikage0o0/image_compressor/", branch = "main" }
-image = { version = "0.24.7", optional = true }
-blurhash = { version = "0.2.0", optional = true }
-
+axum = {version = "0.6.20", optional = true}
+blurhash = {version = "0.2.0", optional = true}
+image = {version = "0.24.7", optional = true}
+image_compressor = {git = "https://github.com/Chikage0o0/image_compressor/", branch = "main"}
+matrix-sdk = {version = "0.6.2", features = ["markdown", "qrcode"], optional = true}
+mime_guess = {version = "2.0.4"}
+url = {version = "2.4.1", optional = true}
+uuid = {version = "1.4.1", optional = true}
 
 [features]
 default = ["matrix"]
-matrix = ["matrix-sdk", "url", "image", "blurhash"]
+matrix = ["matrix-sdk", "url", "image", "blurhash", "axum", "uuid"]
 voce = []
 
 [profile.release]
+codegen-units = 1
 lto = true
 opt-level = "z"
 panic = "abort"
-codegen-units = 1
 strip = true
