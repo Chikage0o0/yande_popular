@@ -1,5 +1,6 @@
 # Yande Popular
 
+## https://github.com/Chikage0o0/matrix-bot
 ## 介绍
 自动下载[Yande.re](https://yande.re)的每日热门图片,并通过机器人接口上传至[VoceChat](https://voce.chat/)频道或者[Matrix](https://matrix.org/)房间。
 
